@@ -1,0 +1,79 @@
+# This file is the entry point to configure your own services.
+# Files in the packages/ subdirectory configure your dependencies.
+
+# Put parameters here that don't need to change on each machine where the app is deployed
+# https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
+parameters:
+
+services:
+    # default configuration for services in *this* file
+    _defaults:
+        autowire: true      # Automatically injects dependencies in your services.
+        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        bind:
+            $apiToken: '%env(REST_API_TOKEN)%'
+
+    # makes classes in src/ available to be used as services
+    # this creates a service per class whose id is the fully-qualified class name
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/Infrastructure/Entity/'
+            - '../src/Kernel.php'
+            - '../src/Tests/'
+
+    # add more service definitions when explicit configuration is needed
+    # please note that last definitions always *replace* previous ones
+
+    ### Controllers
+    App\UI\Http\Rest\Controller\:
+        resource: '../src/UI/Http/Rest/Controller/*'
+        tags: [ 'controller.service_arguments' ]
+    App\UI\Http\Web\Controller\:
+        resource: '../src/UI/Http/Web/Controller/*'
+        tags: [ 'controller.service_arguments' ]
+
+    ### Commands
+    App\UI\Cli\Command\:
+        resource: '../src/UI/Cli/Command/*'
+
+    ### Events $ Listeners
+    kernel.exception_listener:
+        class: App\Application\Event\ExceptionListener
+        tags:
+            - { name: kernel.event_listener, event: kernel.exception }
+
+    kernel.rest_api_token_listener:
+        class: App\Application\Event\RestApiTokenListener
+        tags:
+            - { name: kernel.event_listener, event: kernel.controller }
+
+
+    ### Services
+    App\Infrastructure\Api\YoutubeApiService:
+        public: true
+        arguments:
+            $apiKey: '%env(YOUTUBE_API_KEY)%'
+
+
+    ### Handlers
+    SaveChannelToDBHandler:
+        class: App\Application\Messenger\SaveChannelToDBHandler
+        arguments:
+            $channelRepository: '@DbalChannelRepository'
+
+    SaveVideoToDBHandler:
+        class: App\Application\Messenger\SaveVideoToDBHandler
+        arguments:
+            $videoRepository: '@DbalVideoRepository'
+
+    ### Repositories
+    DbalChannelRepository:
+        class: App\Infrastructure\Repository\DbalChannelRepository
+        arguments:
+            $connection: '@doctrine.dbal.default_connection'
+
+    DbalVideoRepository:
+        class: App\Infrastructure\Repository\DbalVideoRepository
+        arguments:
+            $connection: '@doctrine.dbal.default_connection'
